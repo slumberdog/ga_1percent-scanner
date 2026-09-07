@@ -1,0 +1,51 @@
+name: GA 1% Rule Scanner
+
+on:
+  schedule:
+    # Runs every Monday at 9:00 AM UTC (adjust for your timezone)
+    - cron: "0 9 * * 1"
+  workflow_dispatch: {}   # lets you also trigger it manually from the Actions tab
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run scanner
+        env:
+          RENTCAST_API_KEY: ${{ secrets.RENTCAST_API_KEY }}
+        run: python ga_1percent_scanner.py
+
+      - name: Upload results as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ga-1percent-results
+          path: ga_1percent_results.csv
+
+      # Optional: email yourself the CSV every run.
+      # Requires 3 repo secrets: EMAIL_USERNAME, EMAIL_PASSWORD (a Gmail
+      # "app password", not your real password), and EMAIL_TO.
+      # Delete this step if you'd rather just check the Actions tab for results.
+      - name: Email results
+        if: ${{ secrets.EMAIL_USERNAME != '' }}
+        uses: dawidd6/action-send-mail@v3
+        with:
+          server_address: smtp.gmail.com
+          server_port: 465
+          username: ${{ secrets.EMAIL_USERNAME }}
+          password: ${{ secrets.EMAIL_PASSWORD }}
+          subject: "GA 1% Rule Scan Results"
+          to: ${{ secrets.EMAIL_TO }}
+          from: GA Property Scanner
+          body: "This week's scan results are attached."
+          attachments: ga_1percent_results.csv
